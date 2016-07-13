@@ -23,9 +23,9 @@ int
 dirmodeconv(va_list *arg, Fconv *f)
 {
 	static char buf[16];
-	ulong m;
+	uint32_t m;
 
-	m = va_arg(*arg, ulong);
+	m = va_arg(*arg, uint32_t);
 
 	if(m & DMDIR)
 		buf[0]='d';

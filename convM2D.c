@@ -2,9 +2,9 @@
 #include	<fcall.h>
 
 int
-u9statcheck(uchar *buf, uint nbuf)
+u9statcheck(uint8_t *buf, size_t nbuf)
 {
-	uchar *ebuf;
+	uint8_t *ebuf;
 	int i;
 
 	ebuf = buf + nbuf;
@@ -25,10 +25,10 @@ u9statcheck(uchar *buf, uint nbuf)
 
 static char nullstring[] = "";
 
-uint
-u9convM2D(uchar *buf, uint nbuf, Dir *d, char *strs)
+size_t
+u9convM2D(uint8_t *buf, size_t nbuf, Dir *d, char *strs)
 {
-	uchar *p, *ebuf;
+	uint8_t *p, *ebuf;
 	char *sv[4];
 	int i, ns;
 

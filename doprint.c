@@ -255,7 +255,7 @@ numbconv(va_list *arg, Fconv *fp)
 	char s[IDIGIT];
 	int i, f, n, b, ucase;
 	long v;
-	vlong vl;
+	int64_t vl;
 
 	SET(v);
 	SET(vl);
@@ -291,15 +291,15 @@ numbconv(va_list *arg, Fconv *fp)
 	f = 0;
 	switch(fp->f3 & (FVLONG|FLONG|FUNSIGN|FPOINTER)) {
 	case FVLONG|FLONG:
-		vl = va_arg(*arg, vlong);
+		vl = va_arg(*arg, int64_t);
 		break;
 
 	case FUNSIGN|FVLONG|FLONG:
-		vl = va_arg(*arg, uvlong);
+		vl = va_arg(*arg, uint64_t);
 		break;
 
 	case FUNSIGN|FPOINTER:
-		v = (ulong)va_arg(*arg, void*);
+		v = (uint64_t)va_arg(*arg, void*);
 		break;
 
 	case FLONG:
@@ -307,7 +307,7 @@ numbconv(va_list *arg, Fconv *fp)
 		break;
 
 	case FUNSIGN|FLONG:
-		v = va_arg(*arg, ulong);
+		v = va_arg(*arg, uint64_t);
 		break;
 
 	default:
@@ -332,9 +332,9 @@ numbconv(va_list *arg, Fconv *fp)
 	s[IDIGIT-1] = 0;
 	for(i = IDIGIT-2;; i--) {
 		if(fp->f3 & FVLONG)
-			n = (uvlong)vl % b;
+			n = (uint64_t)vl % b;
 		else
-			n = (ulong)v % b;
+			n = (uint64_t)v % b;
 		n += '0';
 		if(n > '9') {
 			n += 'a' - ('9'+1);
@@ -345,9 +345,9 @@ numbconv(va_list *arg, Fconv *fp)
 		if(i < 2)
 			break;
 		if(fp->f3 & FVLONG)
-			vl = (uvlong)vl / b;
+			vl = (uint64_t)vl / b;
 		else
-			v = (ulong)v / b;
+			v = (uint64_t)v / b;
 		if(fp->f2 != NONE && i >= IDIGIT-fp->f2)
 			continue;
 		if(fp->f3 & FVLONG) {

@@ -11,7 +11,7 @@ getremotehostname(char *name, int nname)
 {
 	struct sockaddr_in sock;
 	struct hostent *hp;
-	uint len;
+	size_t len;
 	int on;
 
 	strecpy(name, name+nname, "unknown");

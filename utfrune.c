@@ -11,7 +11,7 @@ utfrune(char *s, long c)
 		return strchr(s, c);
 
 	for(;;) {
-		c1 = *(uchar*)s;
+		c1 = *(uint8_t*)s;
 		if(c1 < Runeself) {	/* one byte rune */
 			if(c1 == 0)
 				return 0;

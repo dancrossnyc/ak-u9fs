@@ -18,10 +18,10 @@ extern Auth authp9any;
 extern Auth authrhosts;
 extern Auth authnone;
 
-extern ulong truerand(void);
-extern void randombytes(uchar*, uint);
+extern uint32_t truerand(void);
+extern void randombytes(uint8_t*, size_t);
 
-extern ulong  msize;
+extern size_t msize;
 
 typedef struct Fid Fid;
 Fid *newauthfid(int fid, void *magic, char **ep);

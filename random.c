@@ -28,24 +28,24 @@ getseed(void)
 static int seeded;
 
 void
-randombytes(uchar *r, uint nr)
+randombytes(uint8_t *r, size_t nr)
 {
 	int i;
-	ulong l;
+	uint32_t l;
 
 	if(!seeded){
 		seeded=1;
 		srandom(getseed());
 	}
 	for(i=0; i+4<=nr; i+=4,r+=4){
-		l = (ulong)random();
+		l = (uint32_t)random();
 		r[0] = l;
 		r[1] = l>>8;
 		r[2] = l>>16;
 		r[3] = l>>24;
 	}
 	if(i<nr){
-		l = (ulong)random();
+		l = (uint32_t)random();
 		switch(nr-i){
 		case 3:
 			r[2] = l>>16;

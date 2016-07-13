@@ -3,7 +3,7 @@
 
 static uint dumpsome(char*, char*, long);
 static void fdirconv(char*, Dir*);
-static char *qidtype(char*, uchar);
+static char *qidtype(char*, uint8_t);
 
 #define	QIDFMT	"(%.16llux %lud %s)"
 
@@ -74,7 +74,7 @@ fcallconv(va_list *arg, Fconv *f1)
 		break;
 	case Tcreate:	/* 114 */
 		sprint(buf, "Tcreate tag %ud fid %ud name %s perm %M mode %d",
-			tag, fid, f->name, (ulong)f->perm, f->mode);
+			tag, fid, f->name, (uint32_t)f->perm, f->mode);
 		break;
 	case Rcreate:
 		sprint(buf, "Rcreate tag %ud qid " QIDFMT " iounit %ud ", tag,
@@ -144,7 +144,7 @@ fcallconv(va_list *arg, Fconv *f1)
 }
 
 static char*
-qidtype(char *s, uchar t)
+qidtype(char *s, uint8_t t)
 {
 	char *p;
 
@@ -205,7 +205,7 @@ dumpsome(char *ans, char *buf, long count)
 	if(count > DUMPL)
 		count = DUMPL;
 	for(i=0; i<count && printable; i++)
-		if((buf[i]<32 && buf[i] !='\n' && buf[i] !='\t') || (uchar)buf[i]>127)
+		if((buf[i]<32 && buf[i] !='\n' && buf[i] !='\t') || (uint8_t)buf[i]>127)
 			printable = 0;
 	p = ans;
 	*p++ = '\'';
@@ -216,7 +216,7 @@ dumpsome(char *ans, char *buf, long count)
 		for(i=0; i<count; i++){
 			if(i>0 && i%4==0)
 				*p++ = ' ';
-			sprint(p, "%2.2ux", (uchar)buf[i]);
+			sprint(p, "%2.2ux", (uint8_t)buf[i]);
 			p += 2;
 		}
 	}

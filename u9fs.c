@@ -130,9 +130,9 @@ char	Eunknowngroup[] = "unknown group";
 char	Eunknownuser[] = "unknown user";
 char	Ewstatbuffer[] = "bogus wstat buffer";
 
-ulong	msize = IOHDRSZ+8192;
-uchar*	rxbuf;
-uchar*	txbuf;
+size_t msize = IOHDRSZ+8192;
+uint8_t* rxbuf;
+uint8_t* txbuf;
 void*	databuf;
 int	connected;
 int	devallowed;
@@ -509,10 +509,10 @@ rcreate(Fcall *rx, Fcall *tx)
 	tx->qid = stat2qid(&fid->st);
 }
 
-uchar
+uint8_t
 modebyte(struct stat *st)
 {
-	uchar b;
+	uint8_t b;
 
 	b = 0;
 
@@ -527,10 +527,10 @@ modebyte(struct stat *st)
 	return b;
 }
 
-ulong
+uint32_t
 plan9mode(struct stat *st)
 {
-	return ((ulong)modebyte(st)<<24) | (st->st_mode & 0777);
+	return ((uint32_t)modebyte(st)<<24) | (st->st_mode & 0777);
 }
 
 /* 
@@ -545,14 +545,14 @@ unixmode(Dir *d)
 Qid
 stat2qid(struct stat *st)
 {
-	uchar *p, *ep, *q;
+	uint8_t *p, *ep, *q;
 	Qid qid;
 
 	/*
 	 * For now, ignore the device number.
 	 */
 	qid.path = 0;
-	p = (uchar*)&qid.path;
+	p = (uint8_t*)&qid.path;
 	ep = p+sizeof(qid.path);
 	q = p+sizeof(ino_t);
 	if(q > ep){
@@ -582,10 +582,10 @@ char *
 enfrog(char *src)
 {
 	char *d, *dst;
-	uchar *s;
+	uint8_t *s;
 
 	d = dst = emalloc(strlen(src)*3 + 1);
-	for (s = (uchar *)src; *s; s++)
+	for (s = (uint8_t *)src; *s; s++)
 		if(isfrog[*s] || *s == '\\')
 			d += sprintf(d, "\\%02x", *s);
 		else
@@ -639,7 +639,7 @@ void
 rread(Fcall *rx, Fcall *tx)
 {
 	char *e, *path;
-	uchar *p, *ep;
+	uint8_t *p, *ep;
 	int n;
 	Fid *fid;
 	Dir d;
@@ -683,8 +683,8 @@ rread(Fcall *rx, Fcall *tx)
 			return;
 		}
 
-		p = (uchar*)tx->data;
-		ep = (uchar*)tx->data+rx->count;
+		p = (uint8_t*)tx->data;
+		ep = (uint8_t*)tx->data+rx->count;
 		for(;;){
 			if(p+BIT16SZ >= ep)
 				break;
@@ -713,7 +713,7 @@ rread(Fcall *rx, Fcall *tx)
 			p += n;
 			fid->dirent = nil;
 		}
-		tx->count = p - (uchar*)tx->data;
+		tx->count = p - (uint8_t*)tx->data;
 		fid->diroffset += tx->count;
 	}else{
 		if((n = pread(fid->fd, tx->data, rx->count, rx->offset)) < 0){
@@ -854,7 +854,7 @@ rwstat(Fcall *rx, Fcall *tx)
 	}
 
 	/*
-	 * The casting is necessary because d.mode is ulong and might,
+	 * The casting is necessary because d.mode is uint32_t and might,
 	 * on some systems, be 64 bits.  We only want to compare the
 	 * bottom 32 bits, since that's all that gets sent in the protocol.
 	 * 
@@ -878,7 +878,7 @@ rwstat(Fcall *rx, Fcall *tx)
 		}		
 	}
 
-	if((u32int)d.mode != (u32int)~0 && (((d.mode&DMDIR)!=0) ^ (S_ISDIR(fid->st.st_mode)!=0))){
+	if((uint32_t)d.mode != (uint32_t)~0 && (((d.mode&DMDIR)!=0) ^ (S_ISDIR(fid->st.st_mode)!=0))){
 		seterror(tx, Edirchange);
 		return;
 	}
@@ -896,14 +896,14 @@ rwstat(Fcall *rx, Fcall *tx)
 	 * (see above comment about atomicity).
 	 */
 	if (chatty9p) fprint(2, "chmod %p (%s)\n", fid->path, fid->path);
-	if((u32int)d.mode != (u32int)~0 && chmod(fid->path, unixmode(&d)) < 0){
+	if((uint32_t)d.mode != (uint32_t)~0 && chmod(fid->path, unixmode(&d)) < 0){
 		if(chatty9p)
 			fprint(2, "chmod(%s, 0%luo) failed\n", fid->path, unixmode(&d));
 		seterror(tx, strerror(errno));
 		return;
 	}
 
-	if((u32int)d.mtime != (u32int)~0){
+	if((uint32_t)d.mtime != (uint32_t)~0){
 		struct utimbuf t;
 
 		t.actime = 0;
@@ -949,7 +949,7 @@ rwstat(Fcall *rx, Fcall *tx)
 		free(dir);
 	}
 
-	if((u64int)d.length != (u64int)~0 && truncate(fid->path, d.length) < 0){
+	if((uint64_t)d.length != (uint64_t)~0 && truncate(fid->path, d.length) < 0){
 		fprint(2, "truncate(%s, %lld) failed\n", fid->path, d.length);
 		seterror(tx, strerror(errno));
 		return;

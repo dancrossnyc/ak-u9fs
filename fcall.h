@@ -4,43 +4,43 @@
 typedef
 struct	Fcall
 {
-	uchar	type;
-	u32int	fid;
-	ushort	tag;
+	uint8_t	type;
+	uint32_t fid;
+	uint16_t tag;
 
-	u32int	msize;		/* Tversion, Rversion */
+	uint32_t msize;		/* Tversion, Rversion */
 	char	*version;	/* Tversion, Rversion */
 
-	u32int	oldtag;		/* Tflush */
+	uint32_t oldtag;	/* Tflush */
 
 	char	*ename;		/* Rerror */
 
 	Qid	qid;		/* Rattach, Ropen, Rcreate */
-	u32int	iounit;		/* Ropen, Rcreate */
+	uint32_t iounit;		/* Ropen, Rcreate */
 
 	char	*uname;		/* Tattach, Tauth */
 	char	*aname;		/* Tattach, Tauth */
 
 
-	u32int	perm;		/* Tcreate */ 
+	uint32_t perm;		/* Tcreate */ 
 	char	*name;		/* Tcreate */
-	uchar	mode;		/* Tcreate, Topen */
+	uint8_t	mode;		/* Tcreate, Topen */
 
-	u32int	newfid;		/* Twalk */
-	ushort	nwname;		/* Twalk */
+	uint32_t newfid;	/* Twalk */
+	uint16_t nwname;	/* Twalk */
 	char	*wname[MAXWELEM];	/* Twalk */
 
-	ushort	nwqid;		/* Rwalk */
-	Qid	wqid[MAXWELEM];		/* Rwalk */
+	uint16_t nwqid;		/* Rwalk */
+	Qid	wqid[MAXWELEM];	/* Rwalk */
 
-	vlong	offset;		/* Tread, Twrite */
-	u32int	count;		/* Tread, Twrite, Rread */
+	int64_t	offset;		/* Tread, Twrite */
+	uint32_t count;		/* Tread, Twrite, Rread */
 	char	*data;		/* Twrite, Rread */
 
-	ushort	nstat;		/* Twstat, Rstat */
-	uchar	*stat;		/* Twstat, Rstat */
+	uint16_t nstat;		/* Twstat, Rstat */
+	uint8_t	*stat;		/* Twstat, Rstat */
 
-	u32int	afid;		/* Tauth, Tattach */
+	uint32_t afid;		/* Tauth, Tattach */
 	Qid aqid;		/* Rauth */
 } Fcall;
 
@@ -48,8 +48,8 @@ struct	Fcall
 #define	GBIT8(p)	((p)[0])
 #define	GBIT16(p)	((p)[0]|((p)[1]<<8))
 #define	GBIT32(p)	((p)[0]|((p)[1]<<8)|((p)[2]<<16)|((p)[3]<<24))
-#define	GBIT64(p)	((ulong)((p)[0]|((p)[1]<<8)|((p)[2]<<16)|((p)[3]<<24)) |\
-				((vlong)((p)[4]|((p)[5]<<8)|((p)[6]<<16)|((p)[7]<<24)) << 32))
+#define	GBIT64(p)	((uint64_t)((p)[0]|((p)[1]<<8)|((p)[2]<<16)|((p)[3]<<24)) |\
+				((int64_t)((p)[4]|((p)[5]<<8)|((p)[6]<<16)|((p)[7]<<24)) << 32))
 
 #define	PBIT8(p,v)	(p)[0]=(v)
 #define	PBIT16(p,v)	(p)[0]=(v);(p)[1]=(v)>>8
@@ -104,19 +104,19 @@ enum
 	Tmax
 };
 
-uint	u9convM2S(uchar*, uint, Fcall*);
-uint	u9convS2M(Fcall*, uchar*, uint);
+size_t	u9convM2S(uint8_t*, size_t, Fcall*);
+size_t	u9convS2M(Fcall*, uint8_t*, size_t);
 
-int	u9statcheck(uchar *abuf, uint nbuf);
-uint	u9convM2D(uchar*, uint, Dir*, char*);
-uint	u9convD2M(Dir*, uchar*, uint);
-uint	u9sizeD2M(Dir*);
+int	u9statcheck(uint8_t *abuf, size_t);
+size_t	u9convM2D(uint8_t*, size_t, Dir*, char*);
+size_t	u9convD2M(Dir*, uint8_t*, size_t);
+size_t	u9sizeD2M(Dir*);
 
 int	fcallconv(va_list*, Fconv*);
 int	dirconv(va_list*, Fconv*);
 int	dirmodeconv(va_list*, Fconv*);
 
-int	read9pmsg(int, void*, uint);
+int	read9pmsg(int, void*, size_t);
 
 enum {
 	NOFID = 0xFFFFFFFF,

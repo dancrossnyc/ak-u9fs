@@ -1,7 +1,7 @@
 #include	<plan9.h>
 #include	<fcall.h>
 
-uint
+size_t
 u9sizeD2M(Dir *d)
 {
 	char *sv[4];
@@ -19,10 +19,10 @@ u9sizeD2M(Dir *d)
 	return STATFIXLEN + ns;
 }
 
-uint
-u9convD2M(Dir *d, uchar *buf, uint nbuf)
+size_t
+u9convD2M(Dir *d, uint8_t *buf, size_t nbuf)
 {
-	uchar *p, *ebuf;
+	uint8_t *p, *ebuf;
 	char *sv[4];
 	int i, ns, nsv[4], ss;
 

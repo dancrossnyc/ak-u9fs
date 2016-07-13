@@ -2,10 +2,10 @@
 #include	<fcall.h>
 
 static
-uchar*
-pstring(uchar *p, char *s)
+uint8_t*
+pstring(uint8_t *p, char *s)
 {
-	uint n;
+	size_t n;
 
 	n = strlen(s);
 	PBIT16(p, n);
@@ -16,8 +16,8 @@ pstring(uchar *p, char *s)
 }
 
 static
-uchar*
-pqid(uchar *p, Qid *q)
+uint8_t*
+pqid(uint8_t *p, Qid *q)
 {
 	PBIT8(p, q->type);
 	p += BIT8SZ;
@@ -29,17 +29,17 @@ pqid(uchar *p, Qid *q)
 }
 
 static
-uint
+size_t
 stringsz(char *s)
 {
 	return BIT16SZ+strlen(s);
 }
 
 static
-uint
+size_t
 sizeS2M(Fcall *f)
 {
-	uint n;
+	size_t n;
 	int i;
 
 	n = 0;
@@ -207,11 +207,11 @@ sizeS2M(Fcall *f)
 	return n;
 }
 
-uint
-u9convS2M(Fcall *f, uchar *ap, uint nap)
+size_t
+u9convS2M(Fcall *f, uint8_t *ap, size_t nap)
 {
-	uchar *p;
-	uint i, size;
+	uint8_t *p;
+	size_t i, size;
 
 	size = sizeS2M(f);
 	if(size == 0)
@@ -219,7 +219,7 @@ u9convS2M(Fcall *f, uchar *ap, uint nap)
 	if(size > nap)
 		return 0;
 
-	p = (uchar*)ap;
+	p = (uint8_t*)ap;
 
 	PBIT32(p, size);
 	p += BIT32SZ;

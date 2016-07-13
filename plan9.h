@@ -1,73 +1,16 @@
-/* magic to get SUSV2 standard, including pread, pwrite*/
-#define _XOPEN_SOURCE 500
-/* magic to get 64-bit pread/pwrite */
-#define _LARGEFILE64_SOURCE
-/* magic to get 64-bit stat on Linux, maybe others */
-#define _FILE_OFFSET_BITS 64
+#include <sys/types.h>
 
-#ifdef sgi
-#define _BSD_TYPES	1	/* for struct timeval */
-#include <sys/select.h>
-#define _BSD_SOURCE	1	/* for ruserok */
-/*
- * SGI IRIX 5.x doesn't allow inclusion of both inttypes.h and
- * sys/types.h.  These definitions are the ones we need from
- * inttypes.h that aren't in sys/types.h.
- *
- * Unlike most of our #ifdef's, IRIX5X must be set in the makefile.
- */
-#ifdef IRIX5X
-#define __inttypes_INCLUDED
-typedef unsigned int            uint32_t;
-typedef signed long long int    int64_t;
-typedef unsigned long long int  uint64_t;
-#endif /* IRIX5X */
-#endif /* sgi */
-
-
-#ifdef sun	/* sparc and __svr4__ are also defined on the offending machine */
-#define __EXTENSIONS__	1	/* for struct timeval */
-#endif
-
+#include <fcntl.h>
 #include <inttypes.h>		/* for int64_t et al. */
 #include <stdlib.h>
 #include <stdarg.h>		/* for va_list, vararg macros */
-#ifndef va_copy
-#ifdef __va_copy
-#define va_copy	__va_copy
-#else
-#define va_copy(d, s)	memmove(&(d), &(s), sizeof(va_list))
-#endif /* __va_copy */
-#endif /* va_copy */
-#include <sys/types.h>
 #include <string.h>		/* for memmove */
 #include <unistd.h>		/* for write */
-#include <fcntl.h>
 
-#define ulong p9ulong		/* because sys/types.h has some of these sometimes */
-#define ushort p9ushort
-#define uchar p9uchar
-#define uint p9uint
-#define vlong p9vlong
-#define uvlong p9uvlong
-#define u32int p9u32int
-
-typedef unsigned char uchar;
-typedef unsigned short ushort;
-typedef unsigned long ulong;
-typedef unsigned int uint;
-typedef int64_t vlong;
-typedef uint64_t uvlong;
-typedef uint32_t u32int;
-typedef uint64_t u64int;
-typedef ushort Rune;
+typedef uint16_t Rune;
 
 #define nil ((void*)0)
 #define	nelem(x)	(sizeof(x)/sizeof((x)[0]))
-#ifndef offsetof
-#define	offsetof(s, m)	(ulong)(&(((s*)0)->m))
-#endif
-#define	assert(x)	if(x);else _assert("x")
 
 extern char *argv0;
 #define	ARGBEGIN	for((void)(argv0||(argv0=*argv)),argv++,argc--;\
@@ -164,22 +107,22 @@ extern	int	fltconv(va_list*, Fconv*);
 typedef
 struct Qid
 {
-	vlong	path;
-	ulong	vers;
-	uchar	type;
+	uint64_t path;
+	uint32_t vers;
+	uint8_t type;
 } Qid;
 
 typedef
 struct Dir {
 	/* system-modified data */
-	ushort	type;	/* server type */
-	uint	dev;	/* server subtype */
+	uint16_t type;	/* server type */
+	uint32_t dev;	/* server subtype */
 	/* file data */
 	Qid	qid;	/* unique id from server */
-	ulong	mode;	/* permissions */
-	ulong	atime;	/* last read time */
-	ulong	mtime;	/* last write time */
-	vlong	length;	/* file length: see <u.h> */
+	uint32_t mode;	/* permissions */
+	uint32_t atime;	/* last read time */
+	uint32_t mtime;	/* last write time */
+	int64_t	length;	/* file length: see <u.h> */
 	char	*name;	/* last element of path */
 	char	*uid;	/* owner name */
 	char	*gid;	/* group name */

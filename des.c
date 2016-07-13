@@ -220,7 +220,7 @@ fp(long left, long right, char text[8])
 /*
  *	Key set-up
  */
-static uchar keyexpand[][15][2] = {
+static uint8_t keyexpand[][15][2] = {
 	{   { 3,  2 },   { 9,  8 },  { 18,  8 },  { 27, 32 },  { 33,  2 },
 	   { 42, 16 },  { 48,  8 },  { 65, 16 }, { 74,  2 },  { 80,  2 },
 	   { 89,  4 },  { 99, 16 }, { 104,  4 }, { 122, 32 },   { 0,  0 }, },
@@ -395,7 +395,7 @@ void
 key_setup(char key[DESKEYLEN], char *ek)
 {
 	int i, j, k, mask;
-	uchar (*x)[2];
+	uint8_t (*x)[2];
 
 	memset(ek, 0, 128);
 	x = keyexpand[0];

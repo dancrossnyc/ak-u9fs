@@ -2,10 +2,10 @@
 #include	<fcall.h>
 
 static
-uchar*
-gstring(uchar *p, uchar *ep, char **s)
+uint8_t*
+gstring(uint8_t *p, uint8_t *ep, char **s)
 {
-	uint n;
+	size_t n;
 
 	if(p+BIT16SZ > ep)
 		return nil;
@@ -22,8 +22,8 @@ gstring(uchar *p, uchar *ep, char **s)
 }
 
 static
-uchar*
-gqid(uchar *p, uchar *ep, Qid *q)
+uint8_t*
+gqid(uint8_t *p, uint8_t *ep, Qid *q)
 {
 	if(p+QIDSZ > ep)
 		return nil;
@@ -46,11 +46,11 @@ gqid(uchar *p, uchar *ep, Qid *q)
  * main switch statement checks range and also can fall through
  * to test at end of routine.
  */
-uint
-u9convM2S(uchar *ap, uint nap, Fcall *f)
+size_t
+u9convM2S(uint8_t *ap, size_t nap, Fcall *f)
 {
-	uchar *p, *ep;
-	uint i, size;
+	uint8_t *p, *ep;
+	size_t i, size;
 
 	p = ap;
 	ep = p + nap;
