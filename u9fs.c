@@ -2,6 +2,7 @@
 /* plan9.h is first to get the large file support definitions as early as possible */
 #include <plan9.h>
 #include <sys/stat.h>	/* for stat, umask */
+#include <stdio.h>	/* for fprintf et al */
 #include <stdlib.h>	/* for malloc */
 #include <string.h>	/* for strcpy, memmove */
 #include <pwd.h>	/* for getpwnam, getpwuid */
@@ -17,7 +18,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-#include <fcall.h>
+#include <u9fcall.h>
 #include <u9fs.h>
 
 /* #ifndef because can be given in makefile */
@@ -67,7 +68,6 @@ struct Fid {
 };
 
 void*	emalloc(size_t);
-void*	erealloc(void*, size_t);
 char*	estrdup(char*);
 char*	estrpath(char*, char*, int);
 void	sysfatal(char*, ...);
@@ -103,8 +103,8 @@ void	freefid(Fid*);
 
 int	userchange(User*, char**);
 int	userwalk(User*, char**, char*, Qid*, char**);
-int	useropen(Fid*, int, char**);
-int	usercreate(Fid*, char*, int, long, char**);
+int	useropen(Fid*, uint32_t, char**);
+int	usercreate(Fid*, char*, int, uint32_t, char**);
 int	userremove(Fid*, char**);
 int	userperm(User*, char*, int, int);
 int	useringroup(User*, User*);
@@ -187,7 +187,7 @@ getfcall(int fd, Fcall *fc)
 	if(readn(fd, rxbuf+BIT32SZ, len) != len)
 		sysfatal("short message");
 
-	if(u9convM2S(rxbuf, len+BIT32SZ, fc) != len+BIT32SZ) {
+	if(convM2S(rxbuf, len+BIT32SZ, fc) != len+BIT32SZ) {
 		sysfatal("badly sized message type %d", rxbuf[0]);
 	}
 }
@@ -197,7 +197,7 @@ putfcall(int wfd, Fcall *tx)
 {
 	uint n;
 
-	if((n = u9convS2M(tx, txbuf, msize)) == 0)
+	if((n = convS2M(tx, txbuf, msize)) == 0)
 		sysfatal("couldn't format message type %d", tx->type);
 	if(write(wfd, txbuf, n) != n)
 		sysfatal("couldn't send message");
@@ -216,18 +216,19 @@ isowner(User *u, Fid *f)
 	return u->id == f->st.st_uid;
 }
 
-
-
 void
 serve(int rfd, int wfd)
 {
+#pragma GCC diagnostic ignored "-Wformat"
+#pragma GCC diagnostic ignored "-Wformat-extra-args"
+
 	Fcall rx, tx;
 
 	for(;;){
 		getfcall(rfd, &rx);
 
 		if(chatty9p)
-			fprint(2, "<- %F\n", &rx);
+			fprintf(stderr, "<- %J\n", &rx);
 
 		memset(&tx, 0, sizeof tx);
 		tx.type = rx.type+1;
@@ -274,13 +275,13 @@ serve(int rfd, int wfd)
 			rremove(&rx, &tx);
 			break;
 		default:
-			fprint(2, "unknown message %F\n", &rx);
+			fprintf(stderr, "unknown message %J\n", &rx);
 			seterror(&tx, "bad message");
 			break;
 		}
 
 		if(chatty9p)
-			fprint(2, "-> %F\n", &tx);
+			fprintf(stderr, "-> %J\n", &tx);
 
 		putfcall(wfd, &tx);
 	}
@@ -556,19 +557,19 @@ stat2qid(struct stat *st)
 	ep = p+sizeof(qid.path);
 	q = p+sizeof(ino_t);
 	if(q > ep){
-		fprint(2, "warning: inode number too big\n");
+		fprintf(stderr, "warning: inode number too big\n");
 		q = ep;
 	}
 	memmove(p, &st->st_ino, q-p);
 	q = q+sizeof(dev_t);
 	if(q > ep){
 /*
- *		fprint(2, "warning: inode number + device number too big %d+%d\n",
+ *		fprintf(stderr, "warning: inode number + device number too big %zu+%zu\n",
  *			sizeof(ino_t), sizeof(dev_t));
  */
 		q = ep - sizeof(dev_t);
 		if(q < p)
-			fprint(2, "warning: device number too big by itself\n");
+			fprintf(stderr, "warning: device number too big by itself\n");
 		else
 			*(dev_t*)q ^= st->st_dev;
 	}
@@ -688,7 +689,7 @@ rread(Fcall *rx, Fcall *tx)
 		for(;;){
 			if(p+BIT16SZ >= ep)
 				break;
-			if(fid->dirent == nil)	/* one entry cache for when u9convD2M fails */
+			if(fid->dirent == nil)	/* one entry cache for when convD2M fails */
 				if((fid->dirent = readdir(fid->dir)) == nil){
 					fid->direof = 1;
 					break;
@@ -701,14 +702,14 @@ rread(Fcall *rx, Fcall *tx)
 			path = estrpath(fid->path, fid->dirent->d_name, 0);
 			memset(&st, 0, sizeof st);
 			if(stat(path, &st) < 0){
-				fprint(2, "dirread: stat(%s) failed: %s\n", path, strerror(errno));
+				fprintf(stderr, "dirread: stat(%s) failed: %s\n", path, strerror(errno));
 				fid->dirent = nil;
 				free(path);
 				continue;
 			}
 			free(path);
 			stat2dir(fid->dirent->d_name, &st, &d);
-			if((n=u9convD2M(&d, p, ep-p)) <= BIT16SZ)
+			if((n=convD2M(&d, p, ep-p)) <= BIT16SZ)
 				break;
 			p += n;
 			fid->dirent = nil;
@@ -818,7 +819,7 @@ rstat(Fcall *rx, Fcall *tx)
 	}
 
 	stat2dir(fid->path, &fid->st, &d);
-	if((tx->nstat=u9convD2M(&d, tx->stat, msize)) <= BIT16SZ)
+	if((tx->nstat=convD2M(&d, tx->stat, msize)) <= BIT16SZ)
 		seterror(tx, "convD2M fails");
 }
 
@@ -843,7 +844,7 @@ rwstat(Fcall *rx, Fcall *tx)
 	 * one works, we're screwed.  in such cases we leave things
 	 * half broken and return an error.  it's hardly perfect.
 	 */
-	if(u9convM2D(rx->stat, rx->nstat, &d, (char*)rx->stat) <= BIT16SZ){
+	if(convM2D(rx->stat, rx->nstat, &d, (char*)rx->stat) <= BIT16SZ){
 		seterror(tx, Ewstatbuffer);
 		return;
 	}
@@ -895,10 +896,10 @@ rwstat(Fcall *rx, Fcall *tx)
 	 * leave truncate until last.
 	 * (see above comment about atomicity).
 	 */
-	if (chatty9p) fprint(2, "chmod %p (%s)\n", fid->path, fid->path);
+	if (chatty9p) fprintf(stderr, "chmod %p (%s)\n", fid->path, fid->path);
 	if((uint32_t)d.mode != (uint32_t)~0 && chmod(fid->path, unixmode(&d)) < 0){
 		if(chatty9p)
-			fprint(2, "chmod(%s, 0%luo) failed\n", fid->path, unixmode(&d));
+			fprintf(stderr, "chmod(%s, 0%o) failed\n", fid->path, unixmode(&d));
 		seterror(tx, strerror(errno));
 		return;
 	}
@@ -910,7 +911,7 @@ rwstat(Fcall *rx, Fcall *tx)
 		t.modtime = d.mtime;
 		if(utime(fid->path, &t) < 0){
 			if(chatty9p)
-				fprint(2, "utime(%s) failed\n", fid->path);
+				fprintf(stderr, "utime(%s) failed\n", fid->path);
 			seterror(tx, strerror(errno));
 			return;
 		}
@@ -920,7 +921,7 @@ rwstat(Fcall *rx, Fcall *tx)
 		if(0)
 		if (chown(fid->path, (uid_t)-1, gid) < 0){
 			if(chatty9p)
-				fprint(2, "chgrp(%s, %d) failed\n", fid->path, gid);
+				fprintf(stderr, "chgrp(%s, %d) failed\n", fid->path, gid);
 			seterror(tx, strerror(errno));
 			return;
 		}
@@ -938,7 +939,7 @@ rwstat(Fcall *rx, Fcall *tx)
 		new = estrpath(dir, d.name, 1);
 		if(strcmp(old, new) != 0 && rename(old, new) < 0){
 			if(chatty9p)
-				fprint(2, "rename(%s, %s) failed\n", old, new);
+				fprintf(stderr, "rename(%s, %s) failed\n", old, new);
 			seterror(tx, strerror(errno));
 			free(new);
 			free(dir);
@@ -950,7 +951,7 @@ rwstat(Fcall *rx, Fcall *tx)
 	}
 
 	if((uint64_t)d.length != (uint64_t)~0 && truncate(fid->path, d.length) < 0){
-		fprint(2, "truncate(%s, %lld) failed\n", fid->path, d.length);
+		fprintf(stderr, "truncate(%s, %"PRIu64") failed\n", fid->path, d.length);
 		seterror(tx, strerror(errno));
 		return;
 	}
@@ -1096,16 +1097,15 @@ gid2user(int id)
 void
 sysfatal(char *fmt, ...)
 {
+	const char *estr = strerror(errno);
 	char buf[1024];
-	va_list va, temp;
+	va_list va;
 
 	va_start(va, fmt);
-	va_copy(temp, va);
-	doprint(buf, buf+sizeof buf, fmt, &temp);
-	va_end(temp);
+	vsnprintf(buf, sizeof buf, fmt, va);
 	va_end(va);
-	fprint(2, "u9fs: %s\n", buf);
-	fprint(2, "last unix error: %s\n", strerror(errno));
+	fprintf(stderr, "u9fs: %s\n", buf);
+	fprintf(stderr, "last unix error: %s\n", estr);
 	exit(1);
 }
 
@@ -1118,20 +1118,8 @@ emalloc(size_t n)
 		n = 1;
 	p = malloc(n);
 	if(p == 0)
-		sysfatal("malloc(%ld) fails", (long)n);
+		sysfatal("malloc(%zu) fails", n);
 	memset(p, 0, n);
-	return p;
-}
-
-void*
-erealloc(void *p, size_t n)
-{
-	if(p == 0)
-		p = malloc(n);
-	else
-		p = realloc(p, n);
-	if(p == 0)
-		sysfatal("realloc(..., %ld) fails", (long)n);
 	return p;
 }
 
@@ -1278,7 +1266,7 @@ int
 fidstat(Fid *fid, char **ep)
 {
 	if(stat(fid->path, &fid->st) < 0){
-		fprint(2, "fidstat(%s) failed\n", fid->path);
+		fprintf(stderr, "fidstat(%s) failed\n", fid->path);
 		if(ep)
 			*ep = strerror(errno);
 		return -1;
@@ -1296,7 +1284,7 @@ userchange(User *u, char **ep)
 
 	if(0)
 	if(setreuid(0, 0) < 0){
-		fprint(2, "setreuid(0, 0) failed\n");
+		fprintf(stderr, "setreuid(0, 0) failed\n");
 		*ep = "cannot setuid back to root";
 		return -1;
 	}
@@ -1311,11 +1299,11 @@ userchange(User *u, char **ep)
 	 * so we're stuck using a non-SUSV call.  Sigh.
 	 */
 	if(initgroups(u->name, u->defaultgid) < 0)
-		fprint(2, "initgroups(%s) failed: %s\n", u->name, strerror(errno));
+		fprintf(stderr, "initgroups(%s) failed: %s\n", u->name, strerror(errno));
 
 	if(0)
 	if(setreuid(-1, u->id) < 0){
-		fprint(2, "setreuid(-1, %s) failed\n", u->name);
+		fprintf(stderr, "setreuid(-1, %s) failed\n", u->name);
 		*ep = strerror(errno);
 		return -1;
 	}
@@ -1340,7 +1328,7 @@ groupchange(User *u, User *g, char **ep)
 		return -1;
 	if(!useringroup(u, g)){
 		if(chatty9p)
-			fprint(2, "%s not in group %s\n", u->name, g->name);
+			fprintf(stderr, "%s not in group %s\n", u->name, g->name);
 		*ep = Enotingroup;
 		return -1;
 	}
@@ -1348,7 +1336,7 @@ groupchange(User *u, User *g, char **ep)
 if(0){
 	setreuid(0,0);
 	if(setregid(-1, g->id) < 0){
-		fprint(2, "setegid(%s/%d) failed in groupchange\n", g->name, g->id);
+		fprintf(stderr, "setegid(%s/%d) failed in groupchange\n", g->name, g->id);
 		*ep = strerror(errno);
 		return -1;
 	}
@@ -1378,18 +1366,18 @@ userperm(User *u, char *path, int type, int need)
 
 	switch(type){
 	default:
-		fprint(2, "bad type %d in userperm\n", type);
+		fprintf(stderr, "bad type %d in userperm\n", type);
 		return -1;
 	case Tdot:
 		if(stat(path, &st) < 0){
-			fprint(2, "userperm: stat(%s) failed\n", path);
+			fprintf(stderr, "userperm: stat(%s) failed\n", path);
 			return -1;
 		}
 		break;
 	case Tdotdot:
 		p = estrdup(path);
 		if((q = strrchr(p, '/'))==nil){
-			fprint(2, "userperm(%s, ..): bad path\n", p);
+			fprintf(stderr, "userperm(%s, ..): bad path\n", p);
 			free(p);
 			return -1;
 		}
@@ -1398,7 +1386,7 @@ userperm(User *u, char *path, int type, int need)
 		else
 			*(q+1) = '\0';
 		if(stat(p, &st) < 0){
-			fprint(2, "userperm: stat(%s) (dotdot of %s) failed\n",
+			fprintf(stderr, "userperm: stat(%s) (dotdot of %s) failed\n",
 				p, path);
 			free(p);
 			return -1;
@@ -1408,7 +1396,7 @@ userperm(User *u, char *path, int type, int need)
 	}
 
 	if(u == none){
-		fprint(2, "userperm: none wants %d in 0%luo\n", need, st.st_mode);
+		fprintf(stderr, "userperm: none wants %d in 0%o\n", need, st.st_mode);
 		have = st.st_mode&7;
 		if((have&need)==need)
 			return 0;
@@ -1452,7 +1440,7 @@ userwalk(User *u, char **path, char *elem, Qid *qid, char **ep)
 }
 
 int
-useropen(Fid *fid, int omode, char **ep)
+useropen(Fid *fid, uint32_t omode, char **ep)
 {
 	int a, o;
 
@@ -1492,7 +1480,7 @@ useropen(Fid *fid, int omode, char **ep)
 
 	if(S_ISDIR(fid->st.st_mode)){
 		if(a != R_OK){
-			fprint(2, "attempt by %s to open dir %d\n", fid->u->name, omode);
+			fprintf(stderr, "attempt by %s to open dir %"PRIu32"\n", fid->u->name, omode);
 			*ep = Eperm;
 			return -1;
 		}
@@ -1521,7 +1509,7 @@ useropen(Fid *fid, int omode, char **ep)
 }
 
 int
-usercreate(Fid *fid, char *elem, int omode, long perm, char **ep)
+usercreate(Fid *fid, char *elem, int omode, uint32_t perm, char **ep)
 {
 	int o, m;
 	char *opath, *npath;
@@ -1589,7 +1577,7 @@ usercreate(Fid *fid, char *elem, int omode, long perm, char **ep)
 			o |= O_TRUNC;
 		if((fid->fd = open(npath, o, perm&0777)) < 0){
 			if(chatty9p)
-				fprint(2, "create(%s, 0x%x, 0%o) failed\n", npath, o, perm&0777);
+				fprintf(stderr, "create(%s, 0x%x, 0%o) failed\n", npath, o, perm&0777);
 			*ep = strerror(errno);
 			free(npath);
 			return -1;
@@ -1599,7 +1587,7 @@ usercreate(Fid *fid, char *elem, int omode, long perm, char **ep)
 	opath = fid->path;
 	fid->path = npath;
 	if(fidstat(fid, ep) < 0){
-		fprint(2, "stat after create on %s failed\n", npath);
+		fprintf(stderr, "stat after create on %s failed\n", npath);
 		remove(npath);	/* race */
 		free(npath);
 		fid->path = opath;
@@ -1630,7 +1618,7 @@ userremove(Fid *fid, char **ep)
 void
 usage(void)
 {
-	fprint(2, "usage: u9fs [-Dnz] [-a authmethod] [-m msize] [-u user] [root]\n");
+	fprintf(stderr, "usage: u9fs [-Dnz] [-a authmethod] [-m msize] [-u user] [root]\n");
 	exit(1);
 }
 
@@ -1685,11 +1673,9 @@ main(int argc, char **argv)
 
 	if(dup2(fd, 2) < 0)
 		sysfatal("cannot dup fd onto stderr");
-	fprint(2, "u9fs\nkill %d\n", (int)getpid());
+	fprintf(stderr, "u9fs\nkill %d\n", (int)getpid());
 
-	fmtinstall('F', fcallconv);
-	fmtinstall('D', dirconv);
-	fmtinstall('M', dirmodeconv);
+	initfcallconv();
 
 	rxbuf = emalloc(msize);
 	txbuf = emalloc(msize);
@@ -1707,7 +1693,6 @@ main(int argc, char **argv)
 	umask(0);
 
 	if(argc == 1)
-		//if(chroot(argv[0]) < 0)
 		if(chdir(argv[0]) < 0)
 			sysfatal("chroot '%s' failed", argv[0]);
 

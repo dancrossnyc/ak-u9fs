@@ -1,146 +1,153 @@
 #include <plan9.h>
-#include <fcall.h>
+#include <u9fcall.h>
+
+#include <stdio.h>
+#include <string.h>
+#include <printf.h>
 
 static uint dumpsome(char*, char*, long);
-static void fdirconv(char*, Dir*);
+static void fdirconv(char*, size_t, Dir*);
 static char *qidtype(char*, uint8_t);
 
-#define	QIDFMT	"(%.16llux %lud %s)"
+#define	QIDFMT	"(%.16"PRIu64"x %"PRIu32" %s)"
 
-int
-fcallconv(va_list *arg, Fconv *f1)
+static int
+fcallconv(FILE *stream, const struct printf_info *info, const void *const *args)
 {
-	Fcall *f;
+	const Fcall *f;
 	int fid, type, tag, n, i;
-	char buf[512], tmp[200];
-	Dir *d;
-	Qid *q;
+	char buf[512], tmp[16];
+	const Qid *q;
 
-	f = va_arg(*arg, Fcall*);
+	f  = *((const Fcall **)(args[0]));
 	type = f->type;
 	fid = f->fid;
 	tag = f->tag;
 	switch(type){
 	case Tversion:	/* 100 */
-		sprint(buf, "Tversion tag %ud msize %ud version '%s'", tag, f->msize, f->version);
+		snprintf(buf, sizeof(buf), "Tversion tag %"PRIu16" msize %"PRIu32" version '%s'", tag, f->msize, f->version);
 		break;
 	case Rversion:
-		sprint(buf, "Rversion tag %ud msize %ud version '%s'", tag, f->msize, f->version);
+		snprintf(buf, sizeof(buf), "Rversion tag %"PRIu16" msize %"PRIu32" version '%s'", tag, f->msize, f->version);
 		break;
 	case Tauth:	/* 102 */
-		sprint(buf, "Tauth tag %ud afid %d uname %s aname %s", tag,
+		snprintf(buf, sizeof(buf), "Tauth tag %"PRIu16" afid %"PRIu32" uname %s aname %s", tag,
 			f->afid, f->uname, f->aname);
 		break;
 	case Rauth:
-		sprint(buf, "Rauth tag %ud qid " QIDFMT, tag,
+		snprintf(buf, sizeof(buf), "Rauth tag %"PRIu16" qid " QIDFMT, tag,
 			f->aqid.path, f->aqid.vers, qidtype(tmp, f->aqid.type));
 		break;
 	case Tattach:	/* 104 */
-		sprint(buf, "Tattach tag %ud fid %d afid %d uname %s aname %s", tag,
+		snprintf(buf, sizeof(buf), "Tattach tag %"PRIu16" fid %"PRIu32" afid %"PRIu32" uname %s aname %s", tag,
 			fid, f->afid, f->uname, f->aname);
 		break;
 	case Rattach:
-		sprint(buf, "Rattach tag %ud qid " QIDFMT, tag,
+		snprintf(buf, sizeof(buf), "Rattach tag %"PRIu16" qid " QIDFMT, tag,
 			f->qid.path, f->qid.vers, qidtype(tmp, f->qid.type));
 		break;
 	case Rerror:	/* 107; 106 (Terror) illegal */
-		sprint(buf, "Rerror tag %ud ename %s", tag, f->ename);
+		snprintf(buf, sizeof(buf), "Rerror tag %"PRIu16" ename %s", tag, f->ename);
 		break;
 	case Tflush:	/* 108 */
-		sprint(buf, "Tflush tag %ud oldtag %ud", tag, f->oldtag);
+		snprintf(buf, sizeof(buf), "Tflush tag %"PRIu16" oldtag %"PRIu16, tag, f->oldtag);
 		break;
 	case Rflush:
-		sprint(buf, "Rflush tag %ud", tag);
+		snprintf(buf, sizeof(buf), "Rflush tag %"PRIu16, tag);
 		break;
 	case Twalk:	/* 110 */
-		n = sprint(buf, "Twalk tag %ud fid %d newfid %d nwname %d ", tag, fid, f->newfid, f->nwname);
+		n = snprintf(buf, sizeof(buf), "Twalk tag %"PRIu16" fid %"PRIu32" newfid %"PRIu32" nwname %"PRIu16" ",
+			tag, fid, f->newfid, f->nwname);
 			for(i=0; i<f->nwname; i++)
-				n += sprint(buf+n, "%d:%s ", i, f->wname[i]);
+				n += snprintf(buf+n, sizeof(buf)-n, "%d:%s ", i, f->wname[i]);
 		break;
 	case Rwalk:
-		n = sprint(buf, "Rwalk tag %ud nwqid %ud ", tag, f->nwqid);
+		n = snprintf(buf, sizeof(buf), "Rwalk tag %"PRIu16" nwqid %"PRIu16" ", tag, f->nwqid);
 		for(i=0; i<f->nwqid; i++){
 			q = &f->wqid[i];
-			n += sprint(buf+n, "%d:" QIDFMT " ", i,
+			n += sprintf(buf+n, "%d:" QIDFMT " ", i,
 				q->path, q->vers, qidtype(tmp, q->type));
 		}
 		break;
 	case Topen:	/* 112 */
-		sprint(buf, "Topen tag %ud fid %ud mode %d", tag, fid, f->mode);
+		snprintf(buf, sizeof(buf), "Topen tag %"PRIu16" fid %"PRIu32" mode %"PRIu32, tag, fid, f->mode);
 		break;
 	case Ropen:
-		sprint(buf, "Ropen tag %ud qid " QIDFMT " iounit %ud ", tag,
+		snprintf(buf, sizeof(buf), "Ropen tag %"PRIu16" qid " QIDFMT " iounit %"PRIu32" ", tag,
 			f->qid.path, f->qid.vers, qidtype(tmp, f->qid.type), f->iounit);
 		break;
-	case Tcreate:	/* 114 */
-		sprint(buf, "Tcreate tag %ud fid %ud name %s perm %M mode %d",
-			tag, fid, f->name, (uint32_t)f->perm, f->mode);
+	case Tcreate: {	/* 114 */
+		char perm[12];
+		dirmodeconv(perm, f->perm);
+		snprintf(buf, sizeof(buf), "Tcreate tag %"PRIu16" fid %"PRIu32" name %s perm %s mode %"PRIu16,
+			tag, fid, f->name, perm, f->mode);
 		break;
+	}
 	case Rcreate:
-		sprint(buf, "Rcreate tag %ud qid " QIDFMT " iounit %ud ", tag,
+		snprintf(buf, sizeof(buf), "Rcreate tag %"PRIu16" qid " QIDFMT " iounit %"PRIu32" ", tag,
 			f->qid.path, f->qid.vers, qidtype(tmp, f->qid.type), f->iounit);
 		break;
 	case Tread:	/* 116 */
-		sprint(buf, "Tread tag %ud fid %d offset %lld count %ud",
+		snprintf(buf, sizeof(buf), "Tread tag %"PRIu16" fid %"PRIu32" offset %"PRId64" count %"PRIu32,
 			tag, fid, f->offset, f->count);
 		break;
 	case Rread:
-		n = sprint(buf, "Rread tag %ud count %ud ", tag, f->count);
+		n = snprintf(buf, sizeof(buf), "Rread tag %"PRIu16" count %"PRIu32" ", tag, f->count);
 			dumpsome(buf+n, f->data, f->count);
 		break;
 	case Twrite:	/* 118 */
-		n = sprint(buf, "Twrite tag %ud fid %d offset %lld count %ud ",
+		n = snprintf(buf, sizeof(buf), "Twrite tag %"PRIu16" fid %"PRIu32" offset %"PRId64" count %"PRIu32" ",
 			tag, fid, f->offset, f->count);
 		dumpsome(buf+n, f->data, f->count);
 		break;
 	case Rwrite:
-		sprint(buf, "Rwrite tag %ud count %ud", tag, f->count);
+		snprintf(buf, sizeof(buf), "Rwrite tag %"PRIu16" count %"PRIu32, tag, f->count);
 		break;
 	case Tclunk:	/* 120 */
-		sprint(buf, "Tclunk tag %ud fid %ud", tag, fid);
+		snprintf(buf, sizeof(buf), "Tclunk tag %"PRIu16" fid %"PRIu32, tag, fid);
 		break;
 	case Rclunk:
-		sprint(buf, "Rclunk tag %ud", tag);
+		snprintf(buf, sizeof(buf), "Rclunk tag %"PRIu16, tag);
 		break;
 	case Tremove:	/* 122 */
-		sprint(buf, "Tremove tag %ud fid %ud", tag, fid);
+		snprintf(buf, sizeof(buf), "Tremove tag %"PRIu16" fid %"PRIu32, tag, fid);
 		break;
 	case Rremove:
-		sprint(buf, "Rremove tag %ud", tag);
+		snprintf(buf, sizeof(buf), "Rremove tag %"PRIu16, tag);
 		break;
 	case Tstat:	/* 124 */
-		sprint(buf, "Tstat tag %ud fid %ud", tag, fid);
+		snprintf(buf, sizeof(buf), "Tstat tag %"PRIu16" fid %"PRIu32, tag, fid);
 		break;
 	case Rstat:
-		n = sprint(buf, "Rstat tag %ud ", tag);
-		if(f->nstat > sizeof tmp)
-			sprint(buf+n, " stat(%d bytes)", f->nstat);
+		n = snprintf(buf, sizeof(buf), "Rstat tag %"PRIu16" ", tag);
+		if(f->nstat > 200)
+			snprintf(buf+n, sizeof(buf)-n, " stat(%"PRIu16" bytes)", f->nstat);
 		else{
-			d = (Dir*)tmp;
-			u9convM2D(f->stat, f->nstat, d, (char*)(d+1));
-			sprint(buf+n, " stat ");
-			fdirconv(buf+n+6, d);
+			Dir d[2];
+			convM2D(f->stat, f->nstat, d, (char*)(d+1));
+			strlcpy(buf+n, " stat ", sizeof(buf)-n);
+			fdirconv(buf+n+6, sizeof(buf)-n-6, d);
 		}
 		break;
 	case Twstat:	/* 126 */
-		n = sprint(buf, "Twstat tag %ud fid %ud", tag, fid);
-		if(f->nstat > sizeof tmp)
-			sprint(buf+n, " stat(%d bytes)", f->nstat);
+		n = snprintf(buf, sizeof(buf), "Twstat tag %"PRIu16" fid %"PRIu32, tag, fid);
+		if(f->nstat > 200)
+			snprintf(buf+n, sizeof(buf)-n, " stat(%"PRIu16" bytes)", f->nstat);
 		else{
-			d = (Dir*)tmp;
-			u9convM2D(f->stat, f->nstat, d, (char*)(d+1));
-			sprint(buf+n, " stat ");
-			fdirconv(buf+n+6, d);
+			Dir d[2];
+			convM2D(f->stat, f->nstat, d, (char*)(d+1));
+			strlcpy(buf+n, " stat ", sizeof(buf)-n);
+			fdirconv(buf+n+6, sizeof(buf)-n-6, d);
 		}
 		break;
 	case Rwstat:
-		sprint(buf, "Rwstat tag %ud", tag);
+		snprintf(buf, sizeof(buf), "Rwstat tag %"PRIu16, tag);
 		break;
 	default:
-		sprint(buf,  "unknown type %d", type);
+		snprintf(buf, sizeof(buf), "unknown type %d", type);
 	}
-	strconv(buf, f1);
-	return(sizeof(Fcall*));
+	return fprintf(stream, "%*s",
+	    info->left ? -info->width : info->width, buf);
 }
 
 static char*
@@ -163,29 +170,19 @@ qidtype(char *s, uint8_t t)
 	return s;
 }
 
-int
-dirconv(va_list *arg, Fconv *f)
-{
-	char buf[160];
-
-	fdirconv(buf, va_arg(*arg, Dir*));
-	strconv(buf, f);
-	return(sizeof(Dir*));
-}
-
 static void
-fdirconv(char *buf, Dir *d)
+fdirconv(char *buf, size_t len, Dir *d)
 {
 	char tmp[16];
 
-	sprint(buf, "'%s' '%s' '%s' '%s' "
-		"q " QIDFMT " m %#luo "
-		"at %ld mt %ld l %lld "
-		"t %d d %d",
-			d->name, d->uid, d->gid, d->muid,
-			d->qid.path, d->qid.vers, qidtype(tmp, d->qid.type), d->mode,
-			d->atime, d->mtime, d->length,
-			d->type, d->dev);
+	snprintf(buf, len,
+	    "'%s' '%s' '%s' '%s' q " QIDFMT " m %#o "
+	    "at %"PRIu32" mt %"PRIu32" l %zd "
+	    "t %"PRIu16" d %u",
+	    d->name, d->uid, d->gid, d->muid,
+	    d->qid.path, d->qid.vers, qidtype(tmp, d->qid.type), d->mode,
+	    d->atime, d->mtime, d->length,
+	    d->type, d->dev);
 }
 
 /*
@@ -216,11 +213,26 @@ dumpsome(char *ans, char *buf, long count)
 		for(i=0; i<count; i++){
 			if(i>0 && i%4==0)
 				*p++ = ' ';
-			sprint(p, "%2.2ux", (uint8_t)buf[i]);
-			p += 2;
+			p += sprintf(p, "%2.2ux", (uint8_t)buf[i]);
 		}
 	}
 	*p++ = '\'';
 	*p = 0;
 	return p - ans;
+}
+
+static int
+arginfo(const struct printf_info *info, size_t n, int *argtypes, int *size)
+{
+	(void)size;
+	if (n > 0)
+		argtypes[0] = PA_POINTER;
+	return 1;
+}
+
+void
+initfcallconv(void)
+{
+	if (register_printf_specifier('J', fcallconv, arginfo) < 0)
+		sysfatal("Cannot register format specifier for fcallconv");
 }

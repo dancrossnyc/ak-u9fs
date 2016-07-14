@@ -1,5 +1,8 @@
 #include <plan9.h>
-#include <fcall.h>
+#include <u9fcall.h>
+
+#include <stdio.h>
+#include <printf.h>
 
 static char *modes[] =
 {
@@ -19,14 +22,9 @@ rwx(long m, char *s)
 	strncpy(s, modes[m], 3);
 }
 
-int
-dirmodeconv(va_list *arg, Fconv *f)
+void
+dirmodeconv(char buf[static 12], uint32_t m)
 {
-	static char buf[16];
-	uint32_t m;
-
-	m = va_arg(*arg, uint32_t);
-
 	if(m & DMDIR)
 		buf[0]='d';
 	else if(m & DMAPPEND)
@@ -41,7 +39,4 @@ dirmodeconv(va_list *arg, Fconv *f)
 	rwx((m>>3)&7, buf+5);
 	rwx((m>>0)&7, buf+8);
 	buf[11] = 0;
-
-	strconv(buf, f);
-	return 0;
 }

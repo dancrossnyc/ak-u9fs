@@ -1,5 +1,5 @@
 #include <plan9.h>
-#include <fcall.h>
+#include <u9fcall.h>
 #include <u9fs.h>
 
 static char*

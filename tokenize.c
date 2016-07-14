@@ -3,8 +3,8 @@
 int
 getfields(char *str, char **args, int max, int mflag, char *set)
 {
-	Rune r;
-	int nr, intok, narg;
+	int r;
+	int intok, narg;
 
 	if(max <= 0)
 		return 0;
@@ -14,16 +14,16 @@ getfields(char *str, char **args, int max, int mflag, char *set)
 	if(!mflag)
 		narg++;
 	intok = 0;
-	for(;; str += nr) {
-		nr = chartorune(&r, str);
+	for(;; str++) {
+		r = *str;
 		if(r == 0)
 			break;
-		if(utfrune(set, r)) {
+		if(strchr(set, r)) {
 			if(narg >= max)
 				break;
 			*str = 0;
 			intok = 0;
-			args[narg] = str + nr;
+			args[narg] = str + 1;
 			if(!mflag)
 				narg++;
 		} else {

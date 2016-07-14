@@ -4,8 +4,9 @@
  */
 
 #include <plan9.h>
-#include <fcall.h>
+#include <u9fcall.h>
 #include <u9fs.h>
+#include <stdio.h>
 #include <stdlib.h>	/* for random stuff */
 
 typedef struct	Ticket		Ticket;
@@ -275,6 +276,7 @@ p9anyinit(void)
 	int n, fd;
 	char abuf[200];
 	char *af, *f[4];
+	size_t len;
 
 	af = autharg;
 	if(af == nil)
@@ -295,10 +297,11 @@ p9anyinit(void)
 	passtokey(authkey, f[0]);
 	authid = strdup(f[1]);
 	authdom = strdup(f[2]);
-	haveprotosmsg = malloc(strlen("p9sk1") + 1 + strlen(authdom) + 1);
-	sprint(haveprotosmsg, "p9sk1@%s", authdom);
-	needprotomsg = malloc(strlen("p9sk1") + 1 + strlen(authdom) + 1);
-	sprint(needprotomsg, "p9sk1 %s", authdom);
+	len = strlen("p9sk1") + 1 + strlen(authdom) + 1;
+	haveprotosmsg = malloc(len);
+	snprintf(haveprotosmsg, len, "p9sk1@%s", authdom);
+	needprotomsg = malloc(len);
+	snprintf(needprotomsg, len, "p9sk1 %s", authdom);
 }
 
 typedef struct AuthSession {
@@ -324,7 +327,7 @@ p9anyauth(Fcall *rx, Fcall *tx)
 		return ep;
 	}
 	if (chatty9p)
-		fprint(2, "p9anyauth: afid %d\n", rx->afid);
+		fprintf(stderr, "p9anyauth: afid %d\n", rx->afid);
 	sp->state = HaveProtos;
 	sp->uname = strdup(rx->uname);
 	sp->aname = strdup(rx->aname);
@@ -345,7 +348,7 @@ p9anyattach(Fcall *rx, Fcall *tx)
 	if (f == nil)
 		return ep;
 	if (chatty9p)
-		fprint(2, "p9anyattach: afid %d state %d\n", rx->afid, sp->state);
+		fprintf(stderr, "p9anyattach: afid %d state %d\n", rx->afid, sp->state);
 	if (sp->state == Established && strcmp(rx->uname, sp->uname) == 0
 		&& strcmp(rx->aname, sp->aname) == 0)
 		return nil;
@@ -375,7 +378,7 @@ p9anyread(Fcall *rx, Fcall *tx)
 	if (f == nil)
 		return ep;
 	if (chatty9p)
-		fprint(2, "p9anyread: afid %d state %d\n", rx->fid, sp->state);
+		fprintf(stderr, "p9anyread: afid %d state %d\n", rx->fid, sp->state);
 	switch (sp->state) {
 	case HaveProtos:
 		readstr(rx, tx, haveprotosmsg, strlen(haveprotosmsg) + 1);
@@ -420,7 +423,7 @@ p9anywrite(Fcall *rx, Fcall *tx)
 	if (f == nil)
 		return ep;
 	if (chatty9p)
-		fprint(2, "p9anywrite: afid %d state %d\n", rx->fid, sp->state);
+		fprintf(stderr, "p9anywrite: afid %d state %d\n", rx->fid, sp->state);
 	switch (sp->state) {
 	case NeedProto:
 		if (rx->count != strlen(needprotomsg) + 1)
@@ -435,11 +438,11 @@ p9anywrite(Fcall *rx, Fcall *tx)
 			goto botch;
 		memmove(sp->cchal, rx->data, CHALLEN);
 		sp->tr.type = AuthTreq;
-		safecpy(sp->tr.authid, authid, sizeof(sp->tr.authid));
-		safecpy(sp->tr.authdom, authdom, sizeof(sp->tr.authdom));
+		strlcpy(sp->tr.authid, authid, sizeof(sp->tr.authid));
+		strlcpy(sp->tr.authdom, authdom, sizeof(sp->tr.authdom));
 		randombytes((uint8_t *)sp->tr.chal, CHALLEN);
-		safecpy(sp->tr.hostid, "", sizeof(sp->tr.hostid));
-		safecpy(sp->tr.uid, "", sizeof(sp->tr.uid));
+		strlcpy(sp->tr.hostid, "", sizeof(sp->tr.hostid));
+		strlcpy(sp->tr.uid, "", sizeof(sp->tr.uid));
 		tx->count = rx->count;
 		sp->state = HaveTreq;
 		return nil;
@@ -447,25 +450,25 @@ p9anywrite(Fcall *rx, Fcall *tx)
 		Authenticator a;
 
 		if (rx->count != TICKETLEN + AUTHENTLEN) {
-			fprint(2, "bad length in attach");
+			fprintf(stderr, "bad length in attach");
 			goto botch;
 		}
 		convM2T((char*)rx->data, &sp->t, authkey);
 		if (sp->t.num != AuthTs) {
-			fprint(2, "bad AuthTs in attach\n");
+			fprintf(stderr, "bad AuthTs in attach\n");
 			goto botch;
 		}
 		if (memcmp(sp->t.chal, sp->tr.chal, CHALLEN) != 0) {
-			fprint(2, "bad challenge in attach\n");
+			fprintf(stderr, "bad challenge in attach\n");
 			goto botch;
 		}
 		convM2A((char*)rx->data + TICKETLEN, &a, sp->t.key);
 		if (a.num != AuthAc) {
-			fprint(2, "bad AuthAs in attach\n");
+			fprintf(stderr, "bad AuthAs in attach\n");
 			goto botch;
 		}
 		if(memcmp(a.chal, sp->tr.chal, CHALLEN) != 0) {
-			fprint(2, "bad challenge in attach 2\n");
+			fprintf(stderr, "bad challenge in attach 2\n");
 			goto botch;
 		}
 		sp->state = HaveAuth;
@@ -498,7 +501,7 @@ p9anyclunk(Fcall *rx, Fcall *tx)
 	if (f == nil)
 		return ep;
 	if (chatty9p)
-		fprint(2, "p9anyclunk: afid %d\n", rx->fid);
+		fprintf(stderr, "p9anyclunk: afid %d\n", rx->fid);
 	safefree(sp->uname);
 	safefree(sp->aname);
 	memset(sp, 0, sizeof(*sp));

@@ -1,5 +1,6 @@
 #include <sys/types.h>
 
+#include <fcall.h>
 #include <fcntl.h>
 #include <inttypes.h>		/* for int64_t et al. */
 #include <stdlib.h>
@@ -23,7 +24,7 @@ extern char *argv0;
 					argc--; argv++; break;\
 				}\
 				_argc = 0;\
-				while(*_args && (_args += chartorune(&_argc, _args)))\
+				while(*_args && (_argc = *_args, _args++))\
 				switch(_argc)
 #define	ARGEND		SET(_argt);USED(_argt);USED(_argc);USED(_args);}\
 					USED(argv);USED(argc);
@@ -37,18 +38,6 @@ extern char *argv0;
 #define	SET(x)	(x) = 0
 #define	USED(x)	(void)(x)
 
-enum
-{
-	UTFmax		= 3,		/* maximum bytes per rune */
-	Runesync	= 0x80,		/* cannot represent part of a UTF sequence (<) */
-	Runeself	= 0x80,		/* rune and UTF sequences are the same (<) */
-	Runeerror	= 0x80		/* decoding error in UTF */
-};
-
-extern	int	runetochar(char*, Rune*);
-extern	int	chartorune(Rune*, char*);
-extern	int	runelen(long);
-extern	int	utflen(char*);
 extern	char*	strecpy(char*, char*, char*);
 extern	int	tokenize(char*, char**, int);
 extern	int	getfields(char*, char**, int, int, char*);
@@ -66,17 +55,6 @@ struct	Fconv
 	int	f3;
 	int	chr;
 };
-extern	char*	doprint(char*, char*, char*, va_list *argp);
-extern	int	print(char*, ...);
-extern	char*	seprint(char*, char*, char*, ...);
-extern	int	snprint(char*, int, char*, ...);
-extern	int	sprint(char*, char*, ...);
-extern	int	fprint(int, char*, ...);
-
-extern	int	fmtinstall(int, int (*)(va_list*, Fconv*));
-extern	int	numbconv(va_list*, Fconv*);
-extern	void	strconv(char*, Fconv*);
-extern	int	fltconv(va_list*, Fconv*);
 
 #define	OREAD	0	/* open for read */
 #define	OWRITE	1	/* write */
@@ -103,31 +81,6 @@ extern	int	fltconv(va_list*, Fconv*);
 #define DMREAD		0x4		/* mode bit for read permission */
 #define DMWRITE		0x2		/* mode bit for write permission */
 #define DMEXEC		0x1		/* mode bit for execute permission */
-
-typedef
-struct Qid
-{
-	uint64_t path;
-	uint32_t vers;
-	uint8_t type;
-} Qid;
-
-typedef
-struct Dir {
-	/* system-modified data */
-	uint16_t type;	/* server type */
-	uint32_t dev;	/* server subtype */
-	/* file data */
-	Qid	qid;	/* unique id from server */
-	uint32_t mode;	/* permissions */
-	uint32_t atime;	/* last read time */
-	uint32_t mtime;	/* last write time */
-	int64_t	length;	/* file length: see <u.h> */
-	char	*name;	/* last element of path */
-	char	*uid;	/* owner name */
-	char	*gid;	/* group name */
-	char	*muid;	/* last modifier name */
-} Dir;
 
 long readn(int, void*, long);
 void remotehost(char*, int);

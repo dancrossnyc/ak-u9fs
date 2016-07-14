@@ -8,24 +8,15 @@ LDTAIL= -liplib
 OFILES=\
 	authnone.o\
 	authp9any.o\
-	convD2M.o\
-	convM2D.o\
-	convS2M.o\
 	des.o\
 	dirmodeconv.o\
-	doprint.o\
 	fcallconv.o\
-	print.o\
 	random.o\
 	readn.o\
 	remotehost.o\
-	rune.o\
-	safecpy.o\
 	strecpy.o\
 	tokenize.o\
-	u9fs.o\
-	convM2S.o\
-	utfrune.o
+	u9fs.o
 
 
 HFILES=\
